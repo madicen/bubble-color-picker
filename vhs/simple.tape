@@ -1,5 +1,6 @@
 # VHS tape for the simple example (picker is the whole app)
 # Run from bubblepicker dir: vhs vhs/simple.tape
+# Picker is always visible; Tab + arrows show it in action.
 
 Output "screenshots/simple.png"
 
@@ -12,6 +13,12 @@ Set Theme "Builtin Dark"
 Type "go run ./examples/simple"
 Enter
 Sleep 3s
+Tab
+Sleep 300ms
+Right
+Right
+Down
+Sleep 500ms
 
 Screenshot "screenshots/simple.png"
 

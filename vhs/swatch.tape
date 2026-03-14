@@ -1,5 +1,6 @@
-# VHS tape for the swatch example (2×2 grid; click opens modal)
+# VHS tape for the swatch example (2×2 grid; key 1 opens modal)
 # Run from bubblepicker dir: vhs vhs/swatch.tape
+# Key "1" opens the first swatch so the picker is visible in the screenshot.
 
 Output "screenshots/swatch.png"
 
@@ -12,6 +13,8 @@ Set Theme "Builtin Dark"
 Type "go run ./examples/swatch"
 Enter
 Sleep 3s
+Type "1"
+Sleep 2s
 
 Screenshot "screenshots/swatch.png"
 
