@@ -31,7 +31,7 @@ go get github.com/madicen/bubblepicker
 
 ![Simple example](screenshots/simple.png)
 
-#### Swatch — click a color to open the modal
+#### Swatch — before and after opening the modal picker
 
 ![Swatch example](screenshots/swatch.png)
 
@@ -45,10 +45,8 @@ Screenshots are generated with [VHS](https://github.com/charmbracelet/vhs). From
 
 ```bash
 # Install VHS (see https://github.com/charmbracelet/vhs#installation)
-mkdir -p screenshots
-vhs vhs/simple.tape
-vhs vhs/swatch.tape
-vhs vhs/modal.tape
+# You will also need ImageMagick to combine the swatch screenshots.
+make screenshots
 ```
 
 The **Generate Screenshots** workflow (manual or after release) runs these tapes in CI and uploads the images as artifacts. If bubblepicker is used inside another repo (e.g. as a subdirectory), run the same commands with that repo’s working directory set to `bubblepicker`, or add a job that uses `working-directory: bubblepicker`.
