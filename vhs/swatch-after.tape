@@ -1,8 +1,8 @@
-# VHS tape for the swatch example (2×2 grid; key 1 opens modal)
-# Run from bubblepicker dir: vhs vhs/swatch.tape
+# VHS tape for the swatch example (after)
+# Run from bubblepicker dir: vhs vhs/swatch-after.tape
 # Key "4" opens the fourth swatch so the picker is visible in the screenshot.
 
-Output "screenshots/swatch.png"
+Output "screenshots/swatch-after.png"
 
 Set FontSize 14
 Set Width 1300
@@ -19,7 +19,7 @@ Sleep 3s
 Type "4"
 Sleep 2s
 
-Screenshot "screenshots/swatch.png"
+Screenshot "screenshots/swatch-after.png"
 
 Type "q"
 Enter
