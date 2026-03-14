@@ -1,6 +1,6 @@
 # VHS tape for the swatch example (2×2 grid; key 1 opens modal)
 # Run from bubblepicker dir: vhs vhs/swatch.tape
-# Key "1" opens the first swatch so the picker is visible in the screenshot.
+# Key "4" opens the fourth swatch so the picker is visible in the screenshot.
 
 Output "screenshots/swatch.png"
 
@@ -16,7 +16,7 @@ Env TERM xterm-256color
 Type "go run ./examples/swatch"
 Enter
 Sleep 3s
-Type "1"
+Type "4"
 Sleep 2s
 
 Screenshot "screenshots/swatch.png"
