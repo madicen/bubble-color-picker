@@ -94,11 +94,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Configure Git
-        run: |
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
@@ -110,6 +105,11 @@ jobs:
         with:
           name: screenshots
           path: screenshots/
+
+      - name: Configure Git
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
 
       - name: Commit and push screenshots
         run: |
