@@ -80,6 +80,32 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.quitting = true
 			return a, tea.Quit
 		}
+		// Keys 1-4 open the corresponding swatch (for demos/screenshots without mouse).
+		anyOpen := false
+		for _, s := range a.swatches {
+			if s.Open() {
+				anyOpen = true
+				break
+			}
+		}
+		if !anyOpen {
+			var cmd tea.Cmd
+			openPress := tea.MouseMsg{Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+			switch msg.String() {
+			case "1":
+				a.swatches[0], cmd = a.swatches[0].Update(openPress)
+				return a, cmd
+			case "2":
+				a.swatches[1], cmd = a.swatches[1].Update(openPress)
+				return a, cmd
+			case "3":
+				a.swatches[2], cmd = a.swatches[2].Update(openPress)
+				return a, cmd
+			case "4":
+				a.swatches[3], cmd = a.swatches[3].Update(openPress)
+				return a, cmd
+			}
+		}
 	}
 
 	var cmd tea.Cmd
