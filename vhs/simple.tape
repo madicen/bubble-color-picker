@@ -5,10 +5,13 @@
 Output "screenshots/simple.png"
 
 Set FontSize 14
-Set Width 900
-Set Height 500
+Set Width 1300
+Set Height 650
 Set Shell "bash"
 Set Theme "Builtin Dark"
+Set TypingSpeed 75ms
+Env COLORTERM truecolor
+Env TERM xterm-256color
 
 Type "go run ./examples/simple"
 Enter

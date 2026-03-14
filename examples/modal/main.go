@@ -16,9 +16,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
 	"github.com/madicen/bubblepicker"
+	"github.com/muesli/termenv"
 )
 
 func main() {
+	// Force true color so screenshots/demos show full colors (e.g. in VHS / CI).
+	lipgloss.SetColorProfile(termenv.TrueColor)
 	p := tea.NewProgram(newApp(), tea.WithAltScreen(), tea.WithMouseAllMotion())
 	final, err := p.Run()
 	if err != nil {
