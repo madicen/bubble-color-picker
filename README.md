@@ -33,7 +33,9 @@ go get github.com/madicen/bubblepicker
 
 #### Swatch — before and after opening the modal picker
 
-![Swatch example](screenshots/swatch.png)
+![Swatch example](screenshots/swatch-before.png)
+
+![Swatch example](screenshots/swatch-after.png)
 
 #### Modal — picker over the main view
 
