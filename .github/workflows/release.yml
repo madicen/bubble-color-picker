@@ -48,11 +48,7 @@ jobs:
           vhs --version
 
       - name: Generate screenshots
-        run: |
-          mkdir -p screenshots
-          vhs vhs/simple.tape
-          vhs vhs/swatch.tape
-          vhs vhs/modal.tape
+        run: make screenshots
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
