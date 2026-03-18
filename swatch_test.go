@@ -102,6 +102,33 @@ func TestSwatchResizeRecomputesOverlayPosition(t *testing.T) {
 	}
 }
 
+// TestSwatchIgnoreSameClickRelease verifies that the release of the same click that
+// opened the swatch is ignored, so the picker does not immediately confirm and close.
+func TestSwatchIgnoreSameClickRelease(t *testing.T) {
+	s := NewSwatchPicker("#7E00AF", "")
+	s.SetBounds(2, 10, 2, 1)
+	s.lastViewWidth = 80
+	s.lastViewHeight = 24
+	// Open with a left-button press (same as user click).
+	press := tea.MouseMsg{X: 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	next, _ := s.Update(press)
+	if !next.open {
+		t.Fatal("press did not open modal")
+	}
+	// Send the release of the same click (host would forward it after opening).
+	release := tea.MouseMsg{X: 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionRelease}
+	next, cmd := next.Update(release)
+	if !next.open {
+		t.Error("release after open closed the picker; same-click release should be ignored")
+	}
+	if cmd != nil {
+		// Should not have sent ColorChosenMsg
+		if _, isChosen := cmd().(ColorChosenMsg); isChosen {
+			t.Error("same-click release should not produce ColorChosenMsg")
+		}
+	}
+}
+
 func TestSwatchHitTestBounds(t *testing.T) {
 	s := NewSwatchPicker("#7E00AF", "")
 	s.SetBounds(2, 10, 2, 1)
