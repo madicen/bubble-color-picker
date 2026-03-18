@@ -122,10 +122,8 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if openIdx >= 0 {
-		if _, isWindowSize := msg.(tea.WindowSizeMsg); !isWindowSize {
-			a.swatches[openIdx], cmd = a.swatches[openIdx].Update(msg)
-			return a, cmd
-		}
+		a.swatches[openIdx], cmd = a.swatches[openIdx].Update(msg)
+		return a, cmd
 	}
 	// Use bubblezone to route main-view mouse clicks to the correct swatch (no manual hit test).
 	if m, ok := msg.(tea.MouseMsg); ok && m.Action == tea.MouseActionPress && m.Button == tea.MouseButtonLeft {
