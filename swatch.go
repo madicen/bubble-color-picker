@@ -27,6 +27,10 @@ type SwatchPicker struct {
 	open    bool
 	focused bool // When true, arrow is highlighted (for keyboard-only clients)
 
+	// ignoreNextRelease: when true, the next left-button MouseActionRelease is ignored.
+	// Set when we open on press so the same click's release does not confirm the color.
+	ignoreNextRelease bool
+
 	// Optional zone manager: when set, picker uses zones and receives raw screen mouse events.
 	zoneManager *zone.Manager
 
@@ -211,6 +215,13 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 
 	case tea.MouseMsg:
 		if s.open {
+			// Ignore the first left-button release after we opened (same click that opened the modal).
+			// Otherwise the release is delivered to the picker, lands on the grid, and immediately confirms.
+			if s.ignoreNextRelease && m.Action == tea.MouseActionRelease && m.Button == tea.MouseButtonLeft {
+				next := *s
+				next.ignoreNextRelease = false
+				return &next, nil
+			}
 			leftPad := s.lastOverlayLeft
 			topPad := s.lastOverlayTop
 			if s.lastModalW <= 0 && s.lastViewWidth > 0 {
@@ -255,6 +266,7 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 				picker, cmd := next.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 				next.picker = picker.(Model)
 				next.open = true
+				next.ignoreNextRelease = true // ignore same-click release so it doesn't confirm
 				// Compute overlay position so first mouse event uses correct offset (no fallback)
 				modalW, overlayHeight := next.picker.ViewSize()
 				centerRow := next.row + next.h/2

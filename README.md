@@ -132,6 +132,22 @@ Mouse interaction (hover to change, release on grid to accept) only works when:
 
 See [examples/swatch](./examples/swatch) for a full 2×2 grid.
 
+### Embedding SwatchPicker in an app that uses bubblezone
+
+When the SwatchPicker lives inside a **tab** or **submodel** of a larger app (e.g. a settings tab with multiple sub-tabs and zone-based mouse), follow these steps so the picker opens, receives input, and closes correctly.
+
+1. **Opening the swatch**  
+   Bubblezone delivers zone messages on **release**, but the swatch opens on **press**. So when your tab (or root) receives a **mouse press** (`tea.MouseActionPress`), check whether the press is inside the swatch zone—e.g. `zm.Get(zoneID).InBounds(msg)`—and, if so, forward that **press** to the swatch. If you only forward zone/click messages (which carry the release), the swatch will not open on that click.
+
+2. **When the picker is open**  
+   Forward **all** non–`WindowSizeMsg` messages (keys, mouse, etc.) to the open swatch so the picker receives input. Use `swatch.Open()` to know when the modal is active and route messages only to that swatch.
+
+3. **Closing the picker**  
+   `ColorChosenMsg` and `ColorCanceledMsg` are returned as `tea.Cmd` and are delivered to your **root** (or top-level) model in a later `Update` cycle. The root must handle them and forward to the submodel that owns the swatch (e.g. the settings tab), which then calls `themeModel.Update(msg)` so the swatch can close and update. If the root does not handle these message types, they are dropped and the picker never closes.
+
+4. **Same-click release**  
+   The library ignores the first left-button **release** after the swatch opens (the release of the same click that opened the modal), so that release does not confirm the color. You do not need to track or drop that release in the host.
+
 ---
 
 ## Modal use (picker on top of another view)
@@ -164,7 +180,7 @@ See [examples/modal](./examples/modal) for two color boxes and overlay logic.
 - **`NewSwatchPicker(initialColor, label string) *SwatchPicker`** — Create a swatch; click opens the modal picker.
 - **`SwatchView() string`** — The swatch UI (color cell + ▼) to embed in your main view.
 - **`Size() (width, height int)`** — Swatch size in cells; use for layout and SetBounds.
-- **`SetBounds(row, col, w, h int)`** — Where the swatch is drawn (0-based). Call before ViewWithOverlay.
+- **`SetBounds(row, col, w, h int)`** — Where the swatch is drawn (0-based). Call before ViewWithOverlay. `row` and `col` are in **full-view** coordinates (the complete string you pass to `Scan()`); if the swatch is inside a sub-view (e.g. a panel), add the sub-view’s starting line index to the local row.
 - **`ViewWithOverlay(mainView, viewWidth, viewHeight int) string`** — Returns the view (overlays the modal when open).
 - **`SetZoneManager(zm *zone.Manager)`** — Use zone-based mouse when the picker is open; host must run `zone.Scan()` on the view.
 - **`Update(tea.Msg) (*SwatchPicker, tea.Cmd)`** — Forward all messages; assign the returned pointer back.
