@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
-	"github.com/madicen/bubblepicker"
+	bubblepicker "github.com/madicen/bubble-color-picker"
 	"github.com/muesli/termenv"
 )
 
@@ -40,11 +40,11 @@ func main() {
 }
 
 type appModel struct {
-	width       int
-	height      int
-	swatches    [4]*bubblepicker.SwatchPicker
-	zm *zone.Manager
-	quitting    bool
+	width    int
+	height   int
+	swatches [4]*bubblepicker.SwatchPicker
+	zm       *zone.Manager
+	quitting bool
 }
 
 func newApp() *appModel {

@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
-	"github.com/madicen/bubblepicker"
+	bubblepicker "github.com/madicen/bubble-color-picker"
 	"github.com/muesli/termenv"
 )
 
@@ -55,7 +55,7 @@ type appModel struct {
 	selectedStyle lipgloss.Style
 
 	// Last modal dimensions and position when rendering; used for mouse offset so it matches draw.
-	lastModalW         int
+	lastModalW        int
 	lastOverlayHeight int
 	lastOverlayLeft   int
 	lastOverlayTop    int
