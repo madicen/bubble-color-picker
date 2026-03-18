@@ -1,4 +1,4 @@
-module github.com/madicen/bubblepicker
+module github.com/madicen/bubble-color-picker
 
 go 1.24.0
 
