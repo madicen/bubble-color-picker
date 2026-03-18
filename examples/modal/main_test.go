@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/madicen/bubblepicker"
+	bubblepicker "github.com/madicen/bubble-color-picker"
 )
 
 // TestColorBoxClickAtCenter verifies that a mouse click at the center of each
@@ -24,7 +24,7 @@ func TestColorBoxClickAtCenter(t *testing.T) {
 
 		app2 := newApp()
 		app2.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-		_ = app2.View() // populate zone manager via Scan() so InBounds works
+		_ = app2.View()                    // populate zone manager via Scan() so InBounds works
 		time.Sleep(150 * time.Millisecond) // bubblezone updates bounds asynchronously
 		_, _ = app2.Update(tea.MouseMsg{
 			X: centerX, Y: centerY,
@@ -72,7 +72,7 @@ func TestColorBoxCancelRestoresView(t *testing.T) {
 	x0, x1, y0, y1 := app.colorBoxBounds(0)
 	cx, cy := (x0+x1)/2, (y0+y1)/2
 
-	_ = app.View() // populate zone manager so click is detected
+	_ = app.View()                     // populate zone manager so click is detected
 	time.Sleep(150 * time.Millisecond) // bubblezone updates bounds asynchronously
 	m, _ := app.Update(tea.MouseMsg{X: cx, Y: cy, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 	app = m.(*appModel)

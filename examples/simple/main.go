@@ -13,7 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
-	"github.com/madicen/bubblepicker"
+	bubblepicker "github.com/madicen/bubble-color-picker"
 	"github.com/muesli/termenv"
 )
 
@@ -36,9 +36,9 @@ func main() {
 }
 
 type simpleModel struct {
-	picker       bubblepicker.Model
-	zm           *zone.Manager
-	chosenColor  string
+	picker      bubblepicker.Model
+	zm          *zone.Manager
+	chosenColor string
 }
 
 func (m *simpleModel) Init() tea.Cmd { return nil }
