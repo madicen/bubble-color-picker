@@ -5,7 +5,7 @@
 Output "screenshots/simple.png"
 
 Set FontSize 14
-Set Width 1300
+Set Width 650
 Set Height 650
 Set Shell "bash"
 Set Theme "Builtin Dark"
