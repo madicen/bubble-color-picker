@@ -38,7 +38,7 @@ jobs:
       - name: Install VHS and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg ttyd
+          sudo apt-get install -y ffmpeg ttyd imagemagick
           VHS_VERSION=$(curl -s https://api.github.com/repos/charmbracelet/vhs/releases/latest | jq -r '.tag_name')
           curl -LsSf "https://github.com/charmbracelet/vhs/releases/download/${VHS_VERSION}/vhs_${VHS_VERSION#v}_Linux_x86_64.tar.gz" -o /tmp/vhs.tar.gz
           mkdir -p /tmp/vhs-extract

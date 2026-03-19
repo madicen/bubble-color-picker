@@ -33,9 +33,7 @@ go get github.com/madicen/bubble-color-picker
 
 #### Swatch — before and after opening the modal picker
 
-![Swatch example](screenshots/swatch-before.png)
-
-![Swatch example](screenshots/swatch-after.png)
+![Swatch example](screenshots/swatch.png)
 
 #### Modal — picker over the main view
 
