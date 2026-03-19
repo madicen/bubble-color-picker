@@ -1,4 +1,4 @@
-# bubblepicker
+# bubble-color-picker
 
 A [Bubble Tea](https://github.com/charmbracelet/bubbletea) color picker component for terminal UIs. Pick colors with keyboard and mouse; get a hex value back for use with [lipgloss](https://github.com/charmbracelet/lipgloss) or your theme config.
 
@@ -12,7 +12,7 @@ A [Bubble Tea](https://github.com/charmbracelet/bubbletea) color picker componen
 ## Installation
 
 ```bash
-go get github.com/madicen/bubblepicker
+go get github.com/madicen/bubble-color-picker
 ```
 
 ## Examples
