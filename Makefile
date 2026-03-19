@@ -6,10 +6,14 @@ screenshots/simple.png: vhs/simple.tape
 	vhs vhs/simple.tape
 
 screenshots/swatch-before.png: vhs/swatch-before.tape
+	mkdir -p screenshots
 	vhs vhs/swatch-before.tape
+	@[ -f $@ ] || (echo "Error: $@ was not created by vhs"; exit 1)
 
 screenshots/swatch-after.png: vhs/swatch-after.tape
+	mkdir -p screenshots
 	vhs vhs/swatch-after.tape
+	@[ -f $@ ] || (echo "Error: $@ was not created by vhs"; exit 1)
 
 screenshots/swatch.png: screenshots/swatch-before.png screenshots/swatch-after.png
 	@if command -v convert >/dev/null 2>&1; then \
@@ -25,4 +29,4 @@ screenshots/modal.png: vhs/modal.tape
 	vhs vhs/modal.tape
 
 clean:
-	rm -f screenshots/*.png
+	rm -f screenshots/*.png screenshots/*.gif

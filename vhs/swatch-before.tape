@@ -1,7 +1,7 @@
 # VHS tape for the swatch example (before)
 # Run from bubblepicker dir: vhs vhs/swatch-before.tape
 
-Output "screenshots/swatch-before.png"
+# Output "screenshots/swatch-before.gif"
 
 Set FontSize 14
 Set Width 450
@@ -14,6 +14,9 @@ Env TERM xterm-256color
 
 Type "go run ./examples/swatch"
 Enter
-Sleep 3s
+Sleep 5s
 
 Screenshot "screenshots/swatch-before.png"
+
+Type "q"
+Sleep 1s

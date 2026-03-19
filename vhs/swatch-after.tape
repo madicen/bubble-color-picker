@@ -2,7 +2,7 @@
 # Run from bubblepicker dir: vhs vhs/swatch-after.tape
 # Key "4" opens the fourth swatch so the picker is visible in the screenshot.
 
-Output "screenshots/swatch-after.png"
+# Output "screenshots/swatch-after.gif"
 
 Set FontSize 14
 Set Width 450
@@ -15,7 +15,7 @@ Env TERM xterm-256color
 
 Type "go run ./examples/swatch"
 Enter
-Sleep 3s
+Sleep 5s
 Type "4"
 Sleep 2s
 
