@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+	overlay "github.com/madicen/bubble-overlay"
 )
 
 // SwatchPicker is a color swatch (square + optional label + hex) that opens the
@@ -35,12 +36,12 @@ type SwatchPicker struct {
 	zoneManager *zone.Manager
 
 	// Set by ViewWithOverlay for in-modal bounds check when forwarding mouse
-	lastOverlayLeft    int
-	lastOverlayTop     int
-	lastModalW         int
-	lastOverlayHeight  int
-	lastViewWidth      int
-	lastViewHeight     int
+	lastOverlayLeft   int
+	lastOverlayTop    int
+	lastModalW        int
+	lastOverlayHeight int
+	lastViewWidth     int
+	lastViewHeight    int
 }
 
 // Picker symbol shown to the right of the color square (indicates "click to open picker").
@@ -137,7 +138,7 @@ func (s *SwatchPicker) Color() string {
 // the modal on mainView. It stores overlay position and dimensions on the receiver
 // so Update can use them for mouse offset—no need to reassign the return value.
 //
-//   return app.swatch.ViewWithOverlay(mainView, width, height)
+//	return app.swatch.ViewWithOverlay(mainView, width, height)
 func (s *SwatchPicker) ViewWithOverlay(mainView string, viewWidth, viewHeight int) string {
 	if !s.open {
 		return mainView
@@ -169,7 +170,7 @@ func (s *SwatchPicker) ViewWithOverlay(mainView string, viewWidth, viewHeight in
 	s.lastOverlayHeight = overlayHeight
 	s.lastViewWidth = viewWidth
 	s.lastViewHeight = viewHeight
-	return OverlayView(mainView, modalContent, viewWidth, viewHeight, topPad, leftPad)
+	return overlay.OverlayView(mainView, modalContent, viewWidth, viewHeight, topPad, leftPad)
 }
 
 // Update handles messages. Forward all tea.Msg to it. When the user picks a color,

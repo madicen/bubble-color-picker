@@ -152,7 +152,7 @@ When the SwatchPicker lives inside a **tab** or **submodel** of a larger app (e.
 
 ## Modal use (picker on top of another view)
 
-For full control (e.g. multiple color boxes, Tab+Enter), use **`OverlayView`** and a zone manager for the main view and the picker. When the modal is open:
+For full control (e.g. multiple color boxes, Tab+Enter), use bubble-overlay and a zone manager for the main view and the picker. When the modal is open:
 
 - Set the zone manager on the picker: `picker.SetZoneManager(zm)`.
 - Render with `zm.Scan(viewWithModal())` so picker zones (hue bar, grid) are registered.
@@ -173,7 +173,6 @@ See [examples/modal](./examples/modal) for two color boxes and overlay logic.
 - **`SetZoneManager(zm *zone.Manager)`** — Enable zone-based mouse: hover over hue bar/grid to change H/S/L; release left button on grid to accept. Call from the same app that runs `zone.Scan()` on the view.
 - **`ColorChosenMsg`** — Sent when the user presses Enter or releases the left mouse button on the grid. Use `msg.Color` for your theme.
 - **`ColorCanceledMsg`** — Sent when the user presses Esc.
-- **`OverlayView(mainView, modalView, viewWidth, viewHeight, top, left int) string`** — Composites the modal over the main view; ANSI-safe.
 
 ### SwatchPicker
 
