@@ -4,8 +4,8 @@
 Output "screenshots/swatch-before.png"
 
 Set FontSize 14
-Set Width 1300
-Set Height 650
+Set Width 450
+Set Height 500
 Set Shell "bash"
 Set Theme "Builtin Dark"
 Set TypingSpeed 75ms
