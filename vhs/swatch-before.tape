@@ -17,7 +17,3 @@ Enter
 Sleep 3s
 
 Screenshot "screenshots/swatch-before.png"
-
-Type "q"
-Enter
-Sleep 500ms

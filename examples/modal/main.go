@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
 	bubblepicker "github.com/madicen/bubble-color-picker"
+	overlay "github.com/madicen/bubble-overlay"
 	"github.com/muesli/termenv"
 )
 
@@ -275,5 +276,5 @@ func (a *appModel) viewWithModal() string {
 	a.lastOverlayTop = topPad
 
 	// Overlay: replace only the modal rectangle; main view stays visible everywhere else.
-	return bubblepicker.OverlayView(mainView, modalContent, a.width, a.height, topPad, leftPad)
+	return overlay.OverlayView(mainView, modalContent, a.width, a.height, topPad, leftPad)
 }
