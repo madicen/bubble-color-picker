@@ -31,13 +31,13 @@ go get github.com/madicen/bubble-color-picker
 
 ![Simple example](screenshots/simple.png)
 
-#### Swatch — before and after opening the modal picker
+#### Swatch — click to open modal picker
 
-![Swatch example](screenshots/swatch.png)
+![Swatch example](screenshots/swatch.gif)
 
 #### Modal — picker over the main view
 
-![Modal example](screenshots/modal.png)
+![Modal example](screenshots/modal.gif)
 
 ### Generating screenshots
 
@@ -45,7 +45,6 @@ Screenshots are generated with [VHS](https://github.com/charmbracelet/vhs). From
 
 ```bash
 # Install VHS (see https://github.com/charmbracelet/vhs#installation)
-# You will also need ImageMagick to combine the swatch screenshots.
 make screenshots
 ```
 
