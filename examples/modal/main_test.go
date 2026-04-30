@@ -93,7 +93,7 @@ func TestModalOverlayRendersMainView(t *testing.T) {
 	app.width, app.height = 80, 30
 	app.modalOpen = true
 	app.editingKey = "Primary"
-	app.picker = bubblepicker.New(app.colors["Primary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Primary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()
@@ -115,7 +115,7 @@ func TestModalOverlayShowsPickerOnTop(t *testing.T) {
 	app.width, app.height = 80, 24
 	app.modalOpen = true
 	app.editingKey = "Primary"
-	app.picker = bubblepicker.New(app.colors["Primary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Primary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()
@@ -135,7 +135,7 @@ func TestModalOverlayLayout(t *testing.T) {
 	app.width, app.height = 80, 30
 	app.modalOpen = true
 	app.editingKey = "Secondary"
-	app.picker = bubblepicker.New(app.colors["Secondary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Secondary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()

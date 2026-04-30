@@ -123,7 +123,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "enter":
 			a.editingKey = a.labels[a.selected]
-			a.picker = bubblepicker.New(a.colors[a.editingKey])
+			a.picker = bubblepicker.New(bubblepicker.WithInitialColor(a.colors[a.editingKey]))
 			a.picker.SetZoneManager(a.zm)
 			a.modalOpen = true
 			picker, cmd := a.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
@@ -146,7 +146,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if z != nil && z.InBounds(msg) {
 					a.selected = i
 					a.editingKey = a.labels[i]
-					a.picker = bubblepicker.New(a.colors[a.editingKey])
+					a.picker = bubblepicker.New(bubblepicker.WithInitialColor(a.colors[a.editingKey]))
 					a.picker.SetZoneManager(a.zm)
 					a.modalOpen = true
 					picker, cmd := a.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
@@ -157,7 +157,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
-	case bubblepicker.ColorChosenMsg:
+	case bubblepicker.ColorChangedMsg:
 		if a.modalOpen && a.editingKey != "" {
 			a.colors[a.editingKey] = msg.Color
 		}

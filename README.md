@@ -5,15 +5,17 @@ A [Bubble Tea](https://github.com/charmbracelet/bubbletea) color picker componen
 ## Features
 
 - **HSL picker**: Hue bar + saturation/lightness grid
-- **Keyboard**: Tab to switch focus (hue bar ↔ grid), arrows (or hjkl) to change values, Enter to confirm, Esc to cancel
-- **Mouse (zone-based)**: Move the mouse over the hue bar or grid to set H or S/L; **release the left button on the grid** to accept and close. Uses [bubblezone](https://github.com/lrstanley/bubblezone) for reliable hit-testing—no coordinate math.
-- **Output**: Current color as `#rrggbb`; confirm with Enter or by releasing the mouse on the grid to send `ColorChosenMsg`
+- **Keyboard-first**: Tab / Shift+Tab cycle focus (presets row if configured, then hue bar, then S/L grid). Arrows (or hjkl) adjust values; Enter confirms; Esc cancels.
+- **Mouse (zone-based)**: Move the mouse over the hue bar or grid to set H or S/L; **release the left button on the grid** to accept. Uses [bubblezone](https://github.com/lrstanley/bubblezone) for reliable hit-testing—no coordinate math.
+- **Controlled component API**: `New(...Option)` with `WithInitialColor`, `WithPresets`, `WithStyle`, `WithAutoDismiss`. Selection is delivered as **`ColorChangedMsg`** (a `tea.Cmd`); `ColorChosenMsg` remains a type alias for compatibility.
 
 ## Installation
 
 ```bash
 go get github.com/madicen/bubble-color-picker
 ```
+
+The Go import path is `github.com/madicen/bubble-color-picker` (package name `bubblepicker`).
 
 ## Examples
 
@@ -74,12 +76,12 @@ package main
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	zone "github.com/lrstanley/bubblezone"
-	"github.com/madicen/bubblepicker"
+	bubblepicker "github.com/madicen/bubble-color-picker"
 )
 
 func main() {
 	zm := zone.New()
-	picker := bubblepicker.New("#7E00AF")
+	picker := bubblepicker.New(bubblepicker.WithInitialColor("#7E00AF"))
 	picker.SetZoneManager(zm)
 	app := &model{picker: picker, zm: zm}
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseAllMotion())
@@ -96,7 +98,7 @@ func (m *model) Init() tea.Cmd { return nil }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
-	case bubblepicker.ColorChosenMsg:
+	case bubblepicker.ColorChangedMsg:
 		return m, tea.Quit
 	case bubblepicker.ColorCanceledMsg:
 		return m, tea.Quit
@@ -125,7 +127,7 @@ Mouse interaction (hover to change, release on grid to accept) only works when:
 1. Create a swatch: `swatch := bubblepicker.NewSwatchPicker("#7E00AF", "Primary")`
 2. Give the app a zone manager and set it on each swatch: `swatch.SetZoneManager(zm)` (so the picker uses zones when open).
 3. In **View**: build your main view with each swatch wrapped in `zm.Mark("swatch-0", "Color 1: "+swatch.SwatchView())` (or similar), call `swatch.SetBounds(row, col, w, h)` before overlays, then overlay and scan: `return zm.Scan(swatch.ViewWithOverlay(mainView, width, height))`.
-4. In **Update**: when no modal is open and you get a left press, use `zm.Get("swatch-i").InBounds(msg)` to find which swatch was clicked and forward the message only to that swatch; when a modal is open, forward all non–WindowSize messages to the open swatch. On `ColorChosenMsg`, the swatch already has the new color.
+4. In **Update**: when no modal is open and you get a left press, use `zm.Get("swatch-i").InBounds(msg)` to find which swatch was clicked and forward the message only to that swatch; when a modal is open, forward all non–WindowSize messages to the open swatch. On `ColorChangedMsg` / `ColorChosenMsg`, the swatch already has the new color.
 
 See [examples/swatch](./examples/swatch) for a full 2×2 grid.
 
@@ -140,7 +142,7 @@ When the SwatchPicker lives inside a **tab** or **submodel** of a larger app (e.
    Forward **all** non–`WindowSizeMsg` messages (keys, mouse, etc.) to the open swatch so the picker receives input. Use `swatch.Open()` to know when the modal is active and route messages only to that swatch.
 
 3. **Closing the picker**  
-   `ColorChosenMsg` and `ColorCanceledMsg` are returned as `tea.Cmd` and are delivered to your **root** (or top-level) model in a later `Update` cycle. The root must handle them and forward to the submodel that owns the swatch (e.g. the settings tab), which then calls `themeModel.Update(msg)` so the swatch can close and update. If the root does not handle these message types, they are dropped and the picker never closes.
+   `ColorChangedMsg` (same shape as legacy `ColorChosenMsg`) and `ColorCanceledMsg` are returned as `tea.Cmd` and are delivered to your **root** (or top-level) model in a later `Update` cycle. The root must handle them and forward to the submodel that owns the swatch (e.g. the settings tab), which then calls `themeModel.Update(msg)` so the swatch can close and update. If the root does not handle these message types, they are dropped and the picker never closes.
 
 4. **Same-click release**  
    The library ignores the first left-button **release** after the swatch opens (the release of the same click that opened the modal), so that release does not confirm the color. You do not need to track or drop that release in the host.
@@ -159,16 +161,40 @@ See [examples/modal](./examples/modal) for two color boxes and overlay logic.
 
 ---
 
+## Configuration (controlled component)
+
+Build the picker with **`New(...Option)`**:
+
+| Option | Purpose |
+|--------|---------|
+| **`WithInitialColor(hex string)`** | Starting HSL from hex (`"#ff0000"` or empty → default red). |
+| **`WithPresets([]string)`** | Brand swatches shown above the hue bar. Tab to the preset row, ←/→ to move, Enter to confirm that hex (or click with zones). Invalid hex entries are skipped. |
+| **`WithStyle(s lipgloss.Style)`** | Outer frame (border, padding). Without this, the picker uses its default double border tinted by the current color. |
+| **`WithAutoDismiss(bool)`** | When `true`, `ColorChangedMsg` includes **`Dismiss: true`** so the host can remove the picker from the layout immediately after a selection. |
+
+Example:
+
+```go
+picker := bubblepicker.New(
+	bubblepicker.WithInitialColor(cfg.Primary),
+	bubblepicker.WithPresets([]string{"#7E00AF", "#00AF7E", "#241", "#fff"}),
+	bubblepicker.WithAutoDismiss(true),
+)
+```
+
+---
+
 ## API
 
 ### Picker
 
-- **`New(initial string) Model`** — Create a picker. `initial` can be hex (e.g. `"#ff0000"`) or empty (starts at red).
+- **`New(opts ...Option) Model`** — Construct with zero or more options; defaults match the original single-purpose picker.
 - **`Value() string`** — Current color as hex (e.g. `"#7E00AF"`).
-- **`View() string`** — Renders the picker (includes its own double border; border color = current value).
+- **`View() string`** — Renders the picker (default frame: double border tinted by current value unless `WithStyle` is used).
 - **`ViewSize() (width, height int)`** — Rendered size in cells (including border). Use for overlay positioning.
-- **`SetZoneManager(zm *zone.Manager)`** — Enable zone-based mouse: hover over hue bar/grid to change H/S/L; release left button on grid to accept. Call from the same app that runs `zone.Scan()` on the view.
-- **`ColorChosenMsg`** — Sent when the user presses Enter or releases the left mouse button on the grid. Use `msg.Color` for your theme.
+- **`SetZoneManager(zm *zone.Manager)`** — Enable zone-based mouse (hue bar, grid, and preset strip when present). Call from the same app that runs `zone.Scan()` on the view.
+- **`ColorChangedMsg`** — `struct { Color string; Dismiss bool }`. Emitted when the user confirms (Enter, preset Enter, or mouse release on grid). Handle in `Update`; check **`Dismiss`** when using `WithAutoDismiss(true)`.
+- **`ColorChosenMsg`** — Type alias of `ColorChangedMsg` for existing code.
 - **`ColorCanceledMsg`** — Sent when the user presses Esc.
 
 ### SwatchPicker
@@ -188,7 +214,7 @@ See [examples/modal](./examples/modal) for two color boxes and overlay logic.
 
 ## Use in jj-tui (or any TUI)
 
-Embed `bubblepicker.Model` or `SwatchPicker` in your settings screen. On `ColorChosenMsg`, write `msg.Color` to your config (e.g. primary, background) and re-render your lipgloss styles.
+Embed `bubblepicker.Model` or `SwatchPicker` in your settings screen. On `ColorChangedMsg`, write `msg.Color` to your config (e.g. primary, background) and re-render your lipgloss styles.
 
 ---
 

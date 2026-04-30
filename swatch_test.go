@@ -36,7 +36,7 @@ func TestSwatchMouseOffsetWhenModalOpen(t *testing.T) {
 	// event at a known screen position and verify the picker receives correct 1-based rel coords.
 	s := NewSwatchPicker("#7E00AF", "")
 	s.open = true
-	s.picker = New(s.color)
+	s.picker = New(WithInitialColor(s.color))
 	_, _ = s.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 	s.lastOverlayLeft = 10
 	s.lastOverlayTop = 5
@@ -82,7 +82,7 @@ func TestSwatchResizeRecomputesOverlayPosition(t *testing.T) {
 	s := NewSwatchPicker("#7E00AF", "")
 	s.SetBounds(5, 15, 3, 3)
 	s.open = true
-	s.picker = New(s.color)
+	s.picker = New(WithInitialColor(s.color))
 	_, _ = s.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 	s.lastOverlayLeft = 10
 	s.lastOverlayTop = 5

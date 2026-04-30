@@ -260,7 +260,7 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row+1 && m.Y <= s.row+s.h)
 			if inBounds {
 				next := *s
-				next.picker = New(s.color)
+				next.picker = New(WithInitialColor(s.color))
 				if s.zoneManager != nil {
 					next.picker.SetZoneManager(s.zoneManager)
 				}
