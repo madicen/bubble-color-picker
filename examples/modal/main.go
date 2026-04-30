@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -244,37 +243,20 @@ func (a *appModel) viewWithModal() string {
 	mainView := a.viewMain()
 	// Picker draws its own double border (color = current value); no extra wrapper needed.
 	modalContent := a.picker.View()
-	modalLines := strings.Split(modalContent, "\n")
-	overlayHeight := len(modalLines)
+	modalW, overlayHeight := overlay.ModalCellSize(modalContent)
 	a.lastOverlayHeight = overlayHeight
-
-	// Use actual rendered width so positioning and mouse offset match; keeps symmetric gaps.
-	modalW := 0
-	for _, l := range modalLines {
-		if w := lipgloss.Width(l); w > modalW {
-			modalW = w
-		}
-	}
 	a.lastModalW = modalW
 
 	// Position modal centered on the color box we're editing (pops right where the box was)
 	x0, x1, y0, y1 := a.colorBoxBounds(a.selected)
-	centerX := (x0 + x1) / 2
-	centerY := (y0 + y1) / 2
-	// Bounds are 1-based; convert to 0-based for row/col indexing
-	leftPad := centerX - 1 - modalW/2
-	topPad := centerY - 1 - overlayHeight/2
-	leftPad = max(leftPad, 0)
-	if leftPad+modalW > a.width {
-		leftPad = max(a.width-modalW, 0)
-	}
-	topPad = max(topPad, 0)
-	if topPad+overlayHeight > a.height {
-		topPad = max(a.height-overlayHeight, 0)
-	}
+	// colorBoxBounds uses 1-based inclusive coords; Fixed uses 0-based row/col matching OverlayView
+	centerRow := (y0+y1)/2 - 1
+	centerCol := (x0+x1)/2 - 1
+	topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+		ClampedOrigin(modalW, overlayHeight, a.width, a.height)
 	a.lastOverlayLeft = leftPad
 	a.lastOverlayTop = topPad
 
-	// Overlay: replace only the modal rectangle; main view stays visible everywhere else.
+	// OverlayView uses grapheme-aware width (charm x/ansi) so ANSI from lipgloss aligns correctly.
 	return overlay.OverlayView(mainView, modalContent, a.width, a.height, topPad, leftPad)
 }

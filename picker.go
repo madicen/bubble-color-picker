@@ -36,9 +36,9 @@ type ColorCanceledMsg struct{}
 type ColorChosenMsg = ColorChangedMsg
 
 const (
-	ZoneHueBar   = "picker-hue"
-	ZoneGrid     = "picker-grid"
-	ZonePresets  = "picker-presets"
+	ZoneHueBar  = "picker-hue"
+	ZoneGrid    = "picker-grid"
+	ZonePresets = "picker-presets"
 )
 
 // Model is the color picker state. It implements tea.Model.
@@ -223,9 +223,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if m.Focus == FocusHueBar {
+			switch m.Focus {
+			case FocusHueBar:
 				m.HSL.H = math.Mod(m.HSL.H-8+360, 360)
-			} else if m.Focus == FocusGrid {
+			case FocusGrid:
 				m.HSL.S = math.Max(0, m.HSL.S-4)
 			}
 			m.HSL = m.HSL.Clamp()
@@ -237,9 +238,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
-			if m.Focus == FocusHueBar {
+			switch m.Focus {
+			case FocusHueBar:
 				m.HSL.H = math.Mod(m.HSL.H+8, 360)
-			} else if m.Focus == FocusGrid {
+			case FocusGrid:
 				m.HSL.S = math.Min(100, m.HSL.S+4)
 			}
 			m.HSL = m.HSL.Clamp()

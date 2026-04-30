@@ -151,11 +151,15 @@ When the SwatchPicker lives inside a **tab** or **submodel** of a larger app (e.
 
 ## Modal use (picker on top of another view)
 
-For full control (e.g. multiple color boxes, Tab+Enter), use bubble-overlay and a zone manager for the main view and the picker. When the modal is open:
+For full control (e.g. multiple color boxes, Tab+Enter), use [bubble-overlay](https://github.com/madicen/bubble-overlay) and a zone manager for the main view and the picker. When the modal is open:
 
 - Set the zone manager on the picker: `picker.SetZoneManager(zm)`.
 - Render with `zm.Scan(viewWithModal())` so picker zones (hue bar, grid) are registered.
 - Forward **raw** mouse events to the picker (no coordinate conversion); bubblezone uses screen positions.
+
+**Sizing:** use `lipgloss.Size(modalView)` for modal width/height (same as bubble-overlay’s helpers and `OverlayStack`), then pass your clamped `top`/`left` into `overlay.OverlayView`. On recent bubble-overlay, you can alternatively use `overlay.Fixed(top, left).Origin(...)` from the same `Placement` API as `OverlayStack`. Recent releases improve ANSI compositing (grapheme-aware width, pen reset before the modal) for correct lipgloss alignment.
+
+For **dimming** the main view or **stacked** modals, see bubble-overlay’s `DimSurface`, `OverlayConfig`, and `OverlayStack`.
 
 See [examples/modal](./examples/modal) for two color boxes and overlay logic.
 

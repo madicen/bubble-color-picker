@@ -4,8 +4,6 @@
 package bubblepicker
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
@@ -144,26 +142,11 @@ func (s *SwatchPicker) ViewWithOverlay(mainView string, viewWidth, viewHeight in
 		return mainView
 	}
 	modalContent := s.picker.View()
-	modalLines := strings.Split(modalContent, "\n")
-	overlayHeight := len(modalLines)
-	modalW := 0
-	for _, l := range modalLines {
-		if w := lipgloss.Width(l); w > modalW {
-			modalW = w
-		}
-	}
+	modalW, overlayHeight := overlay.ModalCellSize(modalContent)
 	centerRow := s.row + s.h/2
 	centerCol := s.col + s.w/2
-	leftPad := centerCol - modalW/2
-	topPad := centerRow - overlayHeight/2
-	leftPad = max(leftPad, 0)
-	if leftPad+modalW > viewWidth {
-		leftPad = max(viewWidth-modalW, 0)
-	}
-	topPad = max(topPad, 0)
-	if topPad+overlayHeight > viewHeight {
-		topPad = max(viewHeight-overlayHeight, 0)
-	}
+	topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+		ClampedOrigin(modalW, overlayHeight, viewWidth, viewHeight)
 	s.lastOverlayLeft = leftPad
 	s.lastOverlayTop = topPad
 	s.lastModalW = modalW
@@ -189,16 +172,8 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 			if s.lastOverlayHeight > 0 && s.lastModalW > 0 {
 				centerRow := s.row + s.h/2
 				centerCol := s.col + s.w/2
-				leftPad := centerCol - s.lastModalW/2
-				topPad := centerRow - s.lastOverlayHeight/2
-				leftPad = max(leftPad, 0)
-				if s.lastViewWidth > 0 && leftPad+s.lastModalW > s.lastViewWidth {
-					leftPad = max(s.lastViewWidth-s.lastModalW, 0)
-				}
-				topPad = max(topPad, 0)
-				if s.lastViewHeight > 0 && topPad+s.lastOverlayHeight > s.lastViewHeight {
-					topPad = max(s.lastViewHeight-s.lastOverlayHeight, 0)
-				}
+				topPad, leftPad := overlay.Fixed(centerRow-s.lastOverlayHeight/2, centerCol-s.lastModalW/2).
+					ClampedOrigin(s.lastModalW, s.lastOverlayHeight, s.lastViewWidth, s.lastViewHeight)
 				s.lastOverlayLeft = leftPad
 				s.lastOverlayTop = topPad
 			}
@@ -272,16 +247,8 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 				modalW, overlayHeight := next.picker.ViewSize()
 				centerRow := next.row + next.h/2
 				centerCol := next.col + next.w/2
-				leftPad := centerCol - modalW/2
-				topPad := centerRow - overlayHeight/2
-				leftPad = max(leftPad, 0)
-				if next.lastViewWidth > 0 && leftPad+modalW > next.lastViewWidth {
-					leftPad = max(next.lastViewWidth-modalW, 0)
-				}
-				topPad = max(topPad, 0)
-				if next.lastViewHeight > 0 && topPad+overlayHeight > next.lastViewHeight {
-					topPad = max(next.lastViewHeight-overlayHeight, 0)
-				}
+				topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+					ClampedOrigin(modalW, overlayHeight, next.lastViewWidth, next.lastViewHeight)
 				next.lastOverlayLeft = leftPad
 				next.lastOverlayTop = topPad
 				next.lastModalW = modalW
