@@ -40,6 +40,9 @@ type SwatchPicker struct {
 	lastOverlayHeight int
 	lastViewWidth     int
 	lastViewHeight    int
+
+	// Extra Options passed to New when opening the modal (e.g. WithPresets, WithAutoDismiss).
+	pickerOpts []Option
 }
 
 // Picker symbol shown to the right of the color square (indicates "click to open picker").
@@ -55,6 +58,24 @@ func NewSwatchPicker(initialColor, label string) *SwatchPicker {
 		color: initialColor,
 		label: label,
 	}
+}
+
+// SetPickerOptions configures extra bubblepicker.New options used whenever the modal opens.
+// WithInitialColor is always applied from the swatch’s current color first; these append after it.
+// Typical use: WithPresets, WithAutoDismiss.
+func (s *SwatchPicker) SetPickerOptions(opts ...Option) {
+	s.pickerOpts = append([]Option(nil), opts...)
+}
+
+func (s *SwatchPicker) newPickerModel() Model {
+	opts := make([]Option, 0, 1+len(s.pickerOpts))
+	opts = append(opts, WithInitialColor(s.color))
+	opts = append(opts, s.pickerOpts...)
+	p := New(opts...)
+	if s.zoneManager != nil {
+		p.SetZoneManager(s.zoneManager)
+	}
+	return p
 }
 
 // SwatchView returns the swatch as a single line: one cell of color plus the picker symbol (▼).
@@ -233,10 +254,7 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row && m.Y < s.row+s.h)
 			if inBounds {
 				next := *s
-				next.picker = New(WithInitialColor(s.color))
-				if s.zoneManager != nil {
-					next.picker.SetZoneManager(s.zoneManager)
-				}
+				next.picker = next.newPickerModel()
 				picker, cmd := next.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 				next.picker = picker.(Model)
 				next.open = true

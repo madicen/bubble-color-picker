@@ -169,6 +169,22 @@ func TestSwatchHitTestBounds(t *testing.T) {
 // TestSwatchClickOpensPickerAtPosition mimics the example's 2x2 layout: position the mouse
 // directly on the first swatch (using the same bounds as the example) and send a click;
 // verify the picker opens. Uses normalized 0-based Bubble Tea mouse coordinates.
+func TestSwatchSetPickerOptions_Merge(t *testing.T) {
+	s := NewSwatchPicker("#112233", "")
+	s.SetPickerOptions(WithPresets([]string{"#aabbcc", "#ddeeff"}))
+	s.SetBounds(2, 10, 2, 1)
+	s.lastViewWidth = 80
+	s.lastViewHeight = 24
+	next, _ := s.Update(tea.MouseMsg{X: 10, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	if !next.open {
+		t.Fatal("expected picker open")
+	}
+	next, _ = next.Update(ColorCanceledMsg{})
+	if next.open {
+		t.Fatal("expected picker closed after cancel")
+	}
+}
+
 func TestSwatchClickOpensPickerAtPosition(t *testing.T) {
 	const labelLen = 10
 	const gap = 2
