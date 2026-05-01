@@ -206,9 +206,7 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 			if s.lastOverlayHeight <= 0 && s.lastViewHeight > 0 {
 				topPad = max((s.lastViewHeight-22)/2, 0)
 			}
-			// Only forward to picker when click is inside the modal rect (X 0-based, Y 1-based).
-			inModal := m.X >= leftPad && m.X < leftPad+s.lastModalW &&
-				m.Y >= topPad+1 && m.Y <= topPad+s.lastOverlayHeight
+			inModal := overlay.CellInModal(m.X, m.Y, topPad, leftPad, s.lastModalW, s.lastOverlayHeight)
 			if !inModal {
 				return s, nil
 			}
@@ -230,9 +228,9 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 		if m.Action == tea.MouseActionPress && m.Button == tea.MouseButtonLeft {
 			// When zoneManager is set, the app only forwards to us when the zone was in bounds,
 			// so we must not re-check bounds (zone covers e.g. "Color 1: ■▼", not just the 2-cell swatch).
-			// When zoneManager is nil, use 0-based X and 1-based Y bounds.
+			// When zoneManager is nil, use Bubble Tea 0-based cell coords (half-open ranges).
 			inBounds := s.zoneManager != nil ||
-				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row+1 && m.Y <= s.row+s.h)
+				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row && m.Y < s.row+s.h)
 			if inBounds {
 				next := *s
 				next.picker = New(WithInitialColor(s.color))
@@ -284,13 +282,11 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 	return s, nil
 }
 
-// MouseToModalCoords converts screen (x, y) from Bubble Tea to modal-relative (relX, relY)
-// for the picker. X is 0-based, Y is 1-based. The picker expects Y=1 for the first row and
-// X=2 for the first content column (col 0 = padding; it does col-- then contentCol = col-1).
+// MouseToModalCoords converts normalized Bubble Tea screen coords (0-based X and Y, same as
+// overlay.CellInModal) to coordinates relative to the modal’s top-left cell, in the form the
+// picker’s zone handlers expect (contentCol = relX-1, contentRow = relY-1 after Pos-style offsets).
 func MouseToModalCoords(screenX, screenY, overlayLeft, overlayTop int) (relX, relY int) {
-	// Y 1-based: first overlay line is at screen Y = overlayTop+1 -> pass relY=1
-	relY = screenY - overlayTop
-	// X 0-based: first overlay column is at screen X = overlayLeft -> picker expects relX=2 for first content column
+	relY = screenY - overlayTop + 1
 	relX = screenX - overlayLeft + 2
 	return relX, relY
 }

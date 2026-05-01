@@ -221,20 +221,19 @@ func (a *appModel) colorBox(label, hex string, selected bool) string {
 	return style.Render(content)
 }
 
-// colorBoxBounds returns (x0, x1, y0, y1) for box index for mouse hit-test.
-// Bounds are 1-based inclusive to match xterm-style mouse coordinates (column/row 1 = top-left).
+// colorBoxBounds returns inclusive min/max (x0, x1, y0, y1) in normalized Bubble Tea
+// 0-based cell coordinates for the color box at boxIndex. Matches viewMain layout:
+// title line 0, blanks 1–2, boxes on line 3..3+boxH-1.
 // Uses the same style as colorBox to get exact frame size.
 func (a *appModel) colorBoxBounds(boxIndex int) (x0, x1, y0, y1 int) {
 	st := a.boxStyle
 	wFrame, hFrame := st.GetFrameSize() // horizontal and vertical frame (border + padding)
-	// Content is 14 wide, 3 tall; total box size includes frame
 	boxW := 14 + wFrame
 	boxH := 3 + hFrame
 	const gap = 2
-	// View: line 1=title, 2=blank, 3=blank, 4..4+boxH-1=box row (1-based)
-	y0 = 4
-	y1 = 4 + boxH - 1
-	x0 = 1 + boxIndex*(boxW+gap)
+	y0 = 3
+	y1 = 3 + boxH - 1
+	x0 = boxIndex * (boxW + gap)
 	x1 = x0 + boxW - 1
 	return x0, x1, y0, y1
 }
@@ -249,9 +248,8 @@ func (a *appModel) viewWithModal() string {
 
 	// Position modal centered on the color box we're editing (pops right where the box was)
 	x0, x1, y0, y1 := a.colorBoxBounds(a.selected)
-	// colorBoxBounds uses 1-based inclusive coords; Fixed uses 0-based row/col matching OverlayView
-	centerRow := (y0+y1)/2 - 1
-	centerCol := (x0+x1)/2 - 1
+	centerRow := (y0 + y1) / 2
+	centerCol := (x0 + x1) / 2
 	topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
 		ClampedOrigin(modalW, overlayHeight, a.width, a.height)
 	a.lastOverlayLeft = leftPad
