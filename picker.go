@@ -10,29 +10,35 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 )
 
-// Focus indicates which part of the picker is focused for keyboard input.
+// Focus indicates which part of the picker is focused for keyboard input (Tab cycles).
 type Focus int
 
 const (
-	FocusHueBar Focus = iota
+	// FocusPresets is used only when the model was built with WithPresets.
+	FocusPresets Focus = iota
+	FocusHueBar
 	FocusGrid
 )
 
-// Lightness range for the S/L grid (top to bottom). Kept below 100 so the top row isn't pure white.
 const gridLightTop, gridLightBottom = 98.0, 2.0
 
-// ColorChosenMsg is sent when the user confirms the color (Enter).
-type ColorChosenMsg struct {
-	Color string // Hex, e.g. "#rrggbb"
+// ColorChangedMsg is sent when the user confirms a color (Enter, or mouse release on the grid).
+// Handle it at your root or delegated model; Dismiss is true when WithAutoDismiss(true) was used.
+type ColorChangedMsg struct {
+	Color   string // Hex, e.g. "#rrggbb"
+	Dismiss bool   // When true, host should remove the picker from layout (auto-dismiss mode).
 }
 
 // ColorCanceledMsg is sent when the user cancels (Esc).
 type ColorCanceledMsg struct{}
 
-// Zone IDs used when zone manager is set (for zone-based mouse interaction).
+// ColorChosenMsg is a type alias for ColorChangedMsg for backward compatibility.
+type ColorChosenMsg = ColorChangedMsg
+
 const (
-	ZoneHueBar = "picker-hue"
-	ZoneGrid   = "picker-grid"
+	ZoneHueBar  = "picker-hue"
+	ZoneGrid    = "picker-grid"
+	ZonePresets = "picker-presets"
 )
 
 // Model is the color picker state. It implements tea.Model.
@@ -40,27 +46,34 @@ type Model struct {
 	HSL   HSL
 	Focus Focus
 
-	// Layout (from WindowSizeMsg)
 	width  int
 	height int
 
-	// Grid size for S/L (saturation = x, lightness = y)
 	gridCols int
 	gridRows int
 
-	// Optional: when set, mouse is handled via zones (hue bar → H, grid → S/L; release on grid accepts).
 	zm *zone.Manager
 
-	// Styles
 	titleStyle   lipgloss.Style
 	valueStyle   lipgloss.Style
 	helpStyle    lipgloss.Style
-	outlineStyle lipgloss.Style // outline for current selection
+	outlineStyle lipgloss.Style
+
+	presets     []string
+	presetFocus int
+
+	frameStyle  lipgloss.Style
+	customFrame bool
+	autoDismiss bool
 }
 
-// New creates a color picker with an optional initial color (hex, e.g. "#ff0000").
-// If initial is empty or invalid, starts at red (H=0, S=100, L=50).
-func New(initial string) Model {
+// New builds a picker from functional options. With no options, behavior matches the
+// legacy default (red, no presets, standard frame, no auto-dismiss).
+func New(opts ...Option) Model {
+	cfg := Config{}
+	for _, o := range opts {
+		o(&cfg)
+	}
 	m := Model{
 		HSL:          HSL{H: 0, S: 100, L: 50},
 		Focus:        FocusHueBar,
@@ -70,34 +83,52 @@ func New(initial string) Model {
 		valueStyle:   lipgloss.NewStyle().Padding(0, 1),
 		helpStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("241")),
 		outlineStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Bold(true),
+		frameStyle:   lipgloss.NewStyle(),
 	}
-	if initial != "" {
-		if hsl, err := HexToHSL(initial); err == nil {
+	if cfg.InitialColor != "" {
+		if hsl, err := HexToHSL(cfg.InitialColor); err == nil {
 			m.HSL = hsl.Clamp()
 		}
 	}
+	for _, h := range cfg.Presets {
+		if hsl, err := HexToHSL(h); err == nil {
+			m.presets = append(m.presets, hsl.Clamp().ToHex())
+		}
+	}
+	if len(m.presets) > 0 {
+		m.Focus = FocusPresets
+		m.presetFocus = 0
+	}
+	if cfg.CustomFrame {
+		m.frameStyle = cfg.FrameStyle
+		m.customFrame = true
+	}
+	m.autoDismiss = cfg.AutoDismiss
 	return m
 }
 
-// Init implements tea.Model.
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) confirmColorCmd() tea.Cmd {
+	c := m.Value()
+	d := m.autoDismiss
+	return func() tea.Msg {
+		return ColorChangedMsg{Color: c, Dismiss: d}
+	}
 }
+
+// Init implements tea.Model.
+func (m Model) Init() tea.Cmd { return nil }
 
 // Value returns the current color as hex (e.g. "#rrggbb").
 func (m Model) Value() string {
 	return m.HSL.Clamp().ToHex()
 }
 
-// SetZoneManager sets the zone manager for zone-based mouse interaction. When set,
-// moving the mouse over the hue bar sets H and over the grid sets S/L; left-button release on the grid accepts the color.
-// The host must run zone.Scan() on the view that contains the picker so zones are registered.
+// SetZoneManager sets the zone manager for zone-based mouse interaction.
 func (m *Model) SetZoneManager(zm *zone.Manager) {
 	m.zm = zm
 }
 
-// ViewSize returns the display size of the picker view (width, height in cells),
-// including the built-in double border and padding.
+// ViewSize returns display size (width, height in cells), including outer frame.
 func (m Model) ViewSize() (width, height int) {
 	cols := m.gridCols
 	if cols <= 0 {
@@ -107,9 +138,36 @@ func (m Model) ViewSize() (width, height int) {
 	if rows <= 0 {
 		rows = 12
 	}
-	innerW, innerH := cols+2, 10+rows
-	// Frame: DoubleBorder (1 each side) + Padding(0,1) (1 each side) = +2 width, +2 height
+	extra := 0
+	if len(m.presets) > 0 {
+		extra = 2 // preset row + spacing in inner stack
+	}
+	innerW, innerH := cols+2, 10+rows+extra
 	return innerW + 2 + 2, innerH + 2
+}
+
+func (m Model) cycleFocus(next bool) Focus {
+	hasP := len(m.presets) > 0
+	if !hasP {
+		if m.Focus == FocusHueBar {
+			return FocusGrid
+		}
+		return FocusHueBar
+	}
+	order := []Focus{FocusPresets, FocusHueBar, FocusGrid}
+	idx := 0
+	for i, f := range order {
+		if f == m.Focus {
+			idx = i
+			break
+		}
+	}
+	if next {
+		idx = (idx + 1) % 3
+	} else {
+		idx = (idx + 2) % 3
+	}
+	return order[idx]
 }
 
 // Update implements tea.Model.
@@ -117,7 +175,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
-		// Keep the picker small; bar and grid share the same width and are centered.
 		const maxGridCols = 24
 		const maxGridRows = 10
 		contentW := max(msg.Width-2, 16)
@@ -127,6 +184,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.gridCols = maxGridCols
 		}
 		availH := msg.Height - 8
+		if len(m.presets) > 0 {
+			availH -= 2
+		}
 		if availH > maxGridRows {
 			m.gridRows = maxGridRows
 		} else if availH > 4 {
@@ -139,28 +199,49 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			return m, func() tea.Msg { return ColorChosenMsg{Color: m.Value()} }
+			if len(m.presets) > 0 && m.Focus == FocusPresets {
+				if m.presetFocus >= 0 && m.presetFocus < len(m.presets) {
+					if hsl, err := HexToHSL(m.presets[m.presetFocus]); err == nil {
+						m.HSL = hsl.Clamp()
+					}
+				}
+				return m, m.confirmColorCmd()
+			}
+			return m, m.confirmColorCmd()
 		case "esc":
 			return m, func() tea.Msg { return ColorCanceledMsg{} }
 		case "tab":
-			if m.Focus == FocusHueBar {
-				m.Focus = FocusGrid
-			} else {
-				m.Focus = FocusHueBar
-			}
+			m.Focus = m.cycleFocus(true)
+			return m, nil
+		case "shift+tab":
+			m.Focus = m.cycleFocus(false)
 			return m, nil
 		case "left", "h":
-			if m.Focus == FocusHueBar {
+			if len(m.presets) > 0 && m.Focus == FocusPresets {
+				if m.presetFocus > 0 {
+					m.presetFocus--
+				}
+				return m, nil
+			}
+			switch m.Focus {
+			case FocusHueBar:
 				m.HSL.H = math.Mod(m.HSL.H-8+360, 360)
-			} else {
+			case FocusGrid:
 				m.HSL.S = math.Max(0, m.HSL.S-4)
 			}
 			m.HSL = m.HSL.Clamp()
 			return m, nil
 		case "right", "l":
-			if m.Focus == FocusHueBar {
+			if len(m.presets) > 0 && m.Focus == FocusPresets {
+				if m.presetFocus < len(m.presets)-1 {
+					m.presetFocus++
+				}
+				return m, nil
+			}
+			switch m.Focus {
+			case FocusHueBar:
 				m.HSL.H = math.Mod(m.HSL.H+8, 360)
-			} else {
+			case FocusGrid:
 				m.HSL.S = math.Min(100, m.HSL.S+4)
 			}
 			m.HSL = m.HSL.Clamp()
@@ -182,7 +263,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		action := msg.Action
-		// Zone-based: motion (hover) updates selection; release on grid accepts.
 		if m.zm == nil {
 			return m, nil
 		}
@@ -191,7 +271,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !isClick && !isMotion {
 			return m, nil
 		}
-		// Hue bar: set H from relative X (hover or click); zone has border so content X is 1..cols
+		if len(m.presets) > 0 {
+			if z := m.zm.Get(ZonePresets); z != nil && z.InBounds(msg) {
+				relX, _ := z.Pos(msg)
+				cell := 3 // 2 cells + 1 gap per preset
+				idx := (relX - 1) / cell
+				if idx < 0 {
+					idx = 0
+				}
+				if idx >= len(m.presets) {
+					idx = len(m.presets) - 1
+				}
+				m.presetFocus = idx
+				if hsl, err := HexToHSL(m.presets[idx]); err == nil {
+					m.HSL = hsl.Clamp()
+				}
+				if isClick && action == tea.MouseActionRelease && msg.Button == tea.MouseButtonLeft {
+					return m, m.confirmColorCmd()
+				}
+				return m, nil
+			}
+		}
 		if z := m.zm.Get(ZoneHueBar); z != nil && z.InBounds(msg) {
 			relX, _ := z.Pos(msg)
 			w := m.gridCols
@@ -208,7 +308,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		// Grid: set S/L from relative position (hover or click); left-button release on grid accepts and closes
 		if z := m.zm.Get(ZoneGrid); z != nil && z.InBounds(msg) {
 			relX, relY := z.Pos(msg)
 			w := m.gridCols
@@ -228,9 +327,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.HSL.L = gridLightTop - sy*(gridLightTop-gridLightBottom)
 				m.HSL = m.HSL.Clamp()
 			}
-			// Left-button release on grid = accept color and close
 			if isClick && action == tea.MouseActionRelease && msg.Button == tea.MouseButtonLeft {
-				return m, func() tea.Msg { return ColorChosenMsg{Color: m.Value()} }
+				return m, m.confirmColorCmd()
 			}
 			return m, nil
 		}
@@ -250,7 +348,6 @@ func (m Model) View() string {
 	if rows <= 0 {
 		rows = 12
 	}
-	// Focus outline: zero padding/margin. Visible when focused, dim when not.
 	focusBorderFocused := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderLeft(true).BorderRight(true).BorderTop(true).BorderBottom(true).
@@ -264,7 +361,6 @@ func (m Model) View() string {
 		PaddingTop(0).PaddingBottom(0).PaddingLeft(0).PaddingRight(0).
 		MarginTop(0).MarginBottom(0)
 
-	// Hue bar: one row of colored blocks (same width as grid)
 	hueBar := ""
 	for i := 0; i < cols; i++ {
 		h := math.Mod(float64(i)/float64(cols)*360, 360)
@@ -275,7 +371,6 @@ func (m Model) View() string {
 	}
 	hueBar = lipgloss.NewStyle().Width(cols).Render(hueBar)
 
-	// Hue bar: arrow marker directly under bar (inside border so less gap); ▲ for visibility
 	hueIdx := int(m.HSL.H / 360 * float64(cols))
 	if hueIdx >= cols {
 		hueIdx = cols - 1
@@ -290,7 +385,6 @@ func (m Model) View() string {
 	}
 	hueMarkerLine = lipgloss.NewStyle().Width(cols).Render(hueMarkerLine)
 
-	// S/L grid: current cell (sCol, sRow) shows circle
 	sCol := int(m.HSL.S / 100 * float64(cols))
 	if sCol >= cols {
 		sCol = cols - 1
@@ -321,27 +415,24 @@ func (m Model) View() string {
 		grid += line.String() + "\n"
 	}
 
-	// One column before and after content (cols) so each line is cols+2 wide; avoids wrapping.
 	trunc := lipgloss.NewStyle().MaxWidth(cols)
 	toCols := func(content string) string {
 		content = trunc.Render(content)
 		w := min(lipgloss.Width(content), cols)
 		return content + strings.Repeat(" ", cols-w)
 	}
-	wrap := func(s string) string { return " " + toCols(s) + " " } // column before + content + column after
+	wrap := func(s string) string { return " " + toCols(s) + " " }
 	title := wrap(m.titleStyle.Render("Pick a color"))
 	value := wrap(m.valueStyle.Render(m.Value()))
 	help1 := wrap(m.helpStyle.Render("↵ pick  ⎋ close"))
 	help2 := wrap(m.helpStyle.Render("⇥ switch  ←↑↓→ move"))
 
-	// Hue block: bar + marker inside full border (top, bar, marker, bottom)
 	hueBorder := focusBorderUnfocused
 	if m.Focus == FocusHueBar {
 		hueBorder = focusBorderFocused
 	}
 	hueBlock := hueBorder.Width(cols).Render(hueBar + "\n" + hueMarkerLine)
 
-	// Grid block: always same layout (border + rows + border); border visible when focused, dim when not
 	gridTrimmed := strings.TrimSuffix(grid, "\n")
 	gridBorder := focusBorderUnfocused
 	if m.Focus == FocusGrid {
@@ -349,21 +440,48 @@ func (m Model) View() string {
 	}
 	gridBlock := gridBorder.Width(cols).Render(gridTrimmed)
 
-	// When zone manager is set, wrap clickable areas for zone-based mouse handling
+	var presetBlock string
+	if len(m.presets) > 0 {
+		var cells []string
+		for i, hex := range m.presets {
+			st := lipgloss.NewStyle().Background(lipgloss.Color(hex)).Width(2).Render("  ")
+			if m.Focus == FocusPresets && i == m.presetFocus {
+				st = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("15")).Render(
+					lipgloss.NewStyle().Background(lipgloss.Color(hex)).Width(2).Render("  "))
+			}
+			cells = append(cells, st)
+		}
+		row := strings.Join(cells, " ")
+		pb := lipgloss.NewStyle().Width(cols).Render(row)
+		presetBorder := focusBorderUnfocused
+		if m.Focus == FocusPresets {
+			presetBorder = focusBorderFocused
+		}
+		presetBlock = presetBorder.Width(cols).Render(pb)
+	}
+
 	if m.zm != nil {
 		hueBlock = m.zm.Mark(ZoneHueBar, hueBlock)
 		gridBlock = m.zm.Mark(ZoneGrid, gridBlock)
+		if presetBlock != "" {
+			presetBlock = m.zm.Mark(ZonePresets, presetBlock)
+		}
 	}
 
-	inner := lipgloss.JoinVertical(lipgloss.Left,
-		title,
-		hueBlock,
-		gridBlock,
-		value,
-		help1,
-		help2,
-	)
-	// Outer frame: double border colored by current pick (innate to the picker)
+	var inner string
+	if presetBlock != "" {
+		inner = lipgloss.JoinVertical(lipgloss.Left,
+			title, presetBlock, hueBlock, gridBlock, value, help1, help2,
+		)
+	} else {
+		inner = lipgloss.JoinVertical(lipgloss.Left,
+			title, hueBlock, gridBlock, value, help1, help2,
+		)
+	}
+
+	if m.customFrame {
+		return m.frameStyle.Render(inner)
+	}
 	frame := lipgloss.NewStyle().
 		Border(lipgloss.DoubleBorder()).
 		BorderForeground(lipgloss.Color(m.Value())).

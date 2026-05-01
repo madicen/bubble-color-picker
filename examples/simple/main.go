@@ -21,7 +21,7 @@ func main() {
 	// Force true color so screenshots/demos show full colors (e.g. in VHS / CI).
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	zm := zone.New()
-	picker := bubblepicker.New("#7E00AF")
+	picker := bubblepicker.New(bubblepicker.WithInitialColor("#7E00AF"))
 	picker.SetZoneManager(zm)
 	app := &simpleModel{picker: picker, zm: zm}
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseAllMotion())
@@ -50,7 +50,7 @@ func (m *simpleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
-	case bubblepicker.ColorChosenMsg:
+	case bubblepicker.ColorChangedMsg:
 		m.chosenColor = msg.Color
 		return m, tea.Quit
 	case bubblepicker.ColorCanceledMsg:

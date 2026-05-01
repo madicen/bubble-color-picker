@@ -16,7 +16,7 @@ func TestColorBoxClickAtCenter(t *testing.T) {
 	app := newApp()
 	app.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
-	// Get bounds for each box (1-based inclusive) for expected center
+	// Get bounds for each box (0-based inclusive min/max) for expected center
 	for boxIndex := 0; boxIndex < len(app.labels); boxIndex++ {
 		x0, x1, y0, y1 := app.colorBoxBounds(boxIndex)
 		centerX := (x0 + x1) / 2
@@ -93,7 +93,7 @@ func TestModalOverlayRendersMainView(t *testing.T) {
 	app.width, app.height = 80, 30
 	app.modalOpen = true
 	app.editingKey = "Primary"
-	app.picker = bubblepicker.New(app.colors["Primary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Primary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()
@@ -115,7 +115,7 @@ func TestModalOverlayShowsPickerOnTop(t *testing.T) {
 	app.width, app.height = 80, 24
 	app.modalOpen = true
 	app.editingKey = "Primary"
-	app.picker = bubblepicker.New(app.colors["Primary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Primary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()
@@ -135,7 +135,7 @@ func TestModalOverlayLayout(t *testing.T) {
 	app.width, app.height = 80, 30
 	app.modalOpen = true
 	app.editingKey = "Secondary"
-	app.picker = bubblepicker.New(app.colors["Secondary"])
+	app.picker = bubblepicker.New(bubblepicker.WithInitialColor(app.colors["Secondary"]))
 	_, _ = app.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 
 	view := app.View()

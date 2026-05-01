@@ -17,7 +17,7 @@ func stripANSI(s string) string {
 // TestViewHasConsistentWidth verifies that every line has the same width (framed:
 // inner cols+2 plus border and padding).
 func TestViewHasConsistentWidth(t *testing.T) {
-	m := New("#808080")
+	m := New(WithInitialColor("#808080"))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 24})
 	m = updated.(Model)
 	view := m.View()
@@ -43,7 +43,7 @@ func TestViewHasConsistentWidth(t *testing.T) {
 // TestViewHasFramedContent verifies that the view has the title and is framed
 // (border chars on the left of content lines; structure is intact).
 func TestViewHasFramedContent(t *testing.T) {
-	m := New("#808080")
+	m := New(WithInitialColor("#808080"))
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 24})
 	m = updated.(Model)
 	view := m.View()

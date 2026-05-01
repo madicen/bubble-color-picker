@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -123,7 +122,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "enter":
 			a.editingKey = a.labels[a.selected]
-			a.picker = bubblepicker.New(a.colors[a.editingKey])
+			a.picker = bubblepicker.New(bubblepicker.WithInitialColor(a.colors[a.editingKey]))
 			a.picker.SetZoneManager(a.zm)
 			a.modalOpen = true
 			picker, cmd := a.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
@@ -146,7 +145,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if z != nil && z.InBounds(msg) {
 					a.selected = i
 					a.editingKey = a.labels[i]
-					a.picker = bubblepicker.New(a.colors[a.editingKey])
+					a.picker = bubblepicker.New(bubblepicker.WithInitialColor(a.colors[a.editingKey]))
 					a.picker.SetZoneManager(a.zm)
 					a.modalOpen = true
 					picker, cmd := a.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
@@ -157,7 +156,7 @@ func (a *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
-	case bubblepicker.ColorChosenMsg:
+	case bubblepicker.ColorChangedMsg:
 		if a.modalOpen && a.editingKey != "" {
 			a.colors[a.editingKey] = msg.Color
 		}
@@ -222,20 +221,19 @@ func (a *appModel) colorBox(label, hex string, selected bool) string {
 	return style.Render(content)
 }
 
-// colorBoxBounds returns (x0, x1, y0, y1) for box index for mouse hit-test.
-// Bounds are 1-based inclusive to match xterm-style mouse coordinates (column/row 1 = top-left).
+// colorBoxBounds returns inclusive min/max (x0, x1, y0, y1) in normalized Bubble Tea
+// 0-based cell coordinates for the color box at boxIndex. Matches viewMain layout:
+// title line 0, blanks 1–2, boxes on line 3..3+boxH-1.
 // Uses the same style as colorBox to get exact frame size.
 func (a *appModel) colorBoxBounds(boxIndex int) (x0, x1, y0, y1 int) {
 	st := a.boxStyle
 	wFrame, hFrame := st.GetFrameSize() // horizontal and vertical frame (border + padding)
-	// Content is 14 wide, 3 tall; total box size includes frame
 	boxW := 14 + wFrame
 	boxH := 3 + hFrame
 	const gap = 2
-	// View: line 1=title, 2=blank, 3=blank, 4..4+boxH-1=box row (1-based)
-	y0 = 4
-	y1 = 4 + boxH - 1
-	x0 = 1 + boxIndex*(boxW+gap)
+	y0 = 3
+	y1 = 3 + boxH - 1
+	x0 = boxIndex * (boxW + gap)
 	x1 = x0 + boxW - 1
 	return x0, x1, y0, y1
 }
@@ -244,37 +242,19 @@ func (a *appModel) viewWithModal() string {
 	mainView := a.viewMain()
 	// Picker draws its own double border (color = current value); no extra wrapper needed.
 	modalContent := a.picker.View()
-	modalLines := strings.Split(modalContent, "\n")
-	overlayHeight := len(modalLines)
+	modalW, overlayHeight := overlay.ModalCellSize(modalContent)
 	a.lastOverlayHeight = overlayHeight
-
-	// Use actual rendered width so positioning and mouse offset match; keeps symmetric gaps.
-	modalW := 0
-	for _, l := range modalLines {
-		if w := lipgloss.Width(l); w > modalW {
-			modalW = w
-		}
-	}
 	a.lastModalW = modalW
 
 	// Position modal centered on the color box we're editing (pops right where the box was)
 	x0, x1, y0, y1 := a.colorBoxBounds(a.selected)
-	centerX := (x0 + x1) / 2
-	centerY := (y0 + y1) / 2
-	// Bounds are 1-based; convert to 0-based for row/col indexing
-	leftPad := centerX - 1 - modalW/2
-	topPad := centerY - 1 - overlayHeight/2
-	leftPad = max(leftPad, 0)
-	if leftPad+modalW > a.width {
-		leftPad = max(a.width-modalW, 0)
-	}
-	topPad = max(topPad, 0)
-	if topPad+overlayHeight > a.height {
-		topPad = max(a.height-overlayHeight, 0)
-	}
+	centerRow := (y0 + y1) / 2
+	centerCol := (x0 + x1) / 2
+	topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+		ClampedOrigin(modalW, overlayHeight, a.width, a.height)
 	a.lastOverlayLeft = leftPad
 	a.lastOverlayTop = topPad
 
-	// Overlay: replace only the modal rectangle; main view stays visible everywhere else.
+	// OverlayView uses grapheme-aware width (charm x/ansi) so ANSI from lipgloss aligns correctly.
 	return overlay.OverlayView(mainView, modalContent, a.width, a.height, topPad, leftPad)
 }

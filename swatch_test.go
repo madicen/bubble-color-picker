@@ -5,22 +5,23 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	overlay "github.com/madicen/bubble-overlay"
 )
 
 func TestMouseToModalCoords(t *testing.T) {
-	// X 0-based, Y 1-based; overlay at (top=5, left=10). relX = screenX - left + 2, relY = screenY - top
+	// Normalized Bubble Tea coords (0-based X/Y); overlay top-left at (left=10, top=5).
 	left, top := 10, 5
 
 	tests := []struct {
 		screenX, screenY int
 		wantRelX, wantRelY int
 	}{
-		{10, 6, 2, 1},   // 0-based first col of overlay, first row -> X=2 first content col, Y=1
-		{11, 6, 3, 1},   // one right
-		{10, 7, 2, 2},   // one down
-		{12, 9, 4, 4},   // interior
-		{9, 6, 1, 1},    // left of modal (padding)
-		{10, 5, 2, 0},   // above modal
+		{10, 5, 2, 1}, // first row/col of modal (matches overlay.CellInModal)
+		{11, 5, 3, 1},
+		{10, 6, 2, 2},
+		{12, 8, 4, 4},
+		{9, 5, 1, 1},
+		{10, 4, 2, 0}, // above first modal row (CellInModal false)
 	}
 	for _, tt := range tests {
 		relX, relY := MouseToModalCoords(tt.screenX, tt.screenY, left, top)
@@ -31,12 +32,31 @@ func TestMouseToModalCoords(t *testing.T) {
 	}
 }
 
+func TestMouseToModalCoords_agreesWithCellInModal(t *testing.T) {
+	t.Parallel()
+	const left, top, mw, mh = 10, 5, 44, 22
+	x, y := left, top
+	if !overlay.CellInModal(x, y, top, left, mw, mh) {
+		t.Fatal("expected first cell inside modal")
+	}
+	rx, ry := MouseToModalCoords(x, y, left, top)
+	if rx != 2 || ry != 1 {
+		t.Fatalf("first cell rel = (%d,%d), want (2,1)", rx, ry)
+	}
+	x, y = left, top-1
+	if overlay.CellInModal(x, y, top, left, mw, mh) {
+		t.Fatal("expected above modal to be outside")
+	}
+	rx, ry = MouseToModalCoords(x, y, left, top)
+	if ry != 0 {
+		t.Fatalf("above modal relY=%d want 0", ry)
+	}
+}
+
 func TestSwatchMouseOffsetWhenModalOpen(t *testing.T) {
-	// Open the modal, set lastOverlay* so we control the offset, then send a mouse
-	// event at a known screen position and verify the picker receives correct 1-based rel coords.
 	s := NewSwatchPicker("#7E00AF", "")
 	s.open = true
-	s.picker = New(s.color)
+	s.picker = New(WithInitialColor(s.color))
 	_, _ = s.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 	s.lastOverlayLeft = 10
 	s.lastOverlayTop = 5
@@ -45,8 +65,7 @@ func TestSwatchMouseOffsetWhenModalOpen(t *testing.T) {
 	s.lastViewWidth = 60
 	s.lastViewHeight = 24
 
-	// Click at 0-based X=12, 1-based Y=7 = second column, third row of modal content area.
-	// Expected rel: (12-10+2, 7-5) = (4, 2).
+	// 0-based screen (12, 7): rel (12-10+2, 7-5+1) = (4, 3).
 	msg := tea.MouseMsg{
 		X: 12, Y: 7,
 		Button: tea.MouseButtonLeft,
@@ -57,7 +76,7 @@ func TestSwatchMouseOffsetWhenModalOpen(t *testing.T) {
 		// May trigger ColorChosenMsg if click landed on grid with release
 		_ = cmd
 	}
-	// Picker should have received rel (3, 3); we can't read picker state easily, but at least
+	// Picker (with zones) gets raw coords; without zones rel would be (4, 3). We only assert
 	// no panic and modal still open (unless they picked a color).
 	if !next.open {
 		// They might have clicked confirm; that's valid
@@ -82,7 +101,7 @@ func TestSwatchResizeRecomputesOverlayPosition(t *testing.T) {
 	s := NewSwatchPicker("#7E00AF", "")
 	s.SetBounds(5, 15, 3, 3)
 	s.open = true
-	s.picker = New(s.color)
+	s.picker = New(WithInitialColor(s.color))
 	_, _ = s.picker.Update(tea.WindowSizeMsg{Width: 42, Height: 22})
 	s.lastOverlayLeft = 10
 	s.lastOverlayTop = 5
@@ -110,13 +129,13 @@ func TestSwatchIgnoreSameClickRelease(t *testing.T) {
 	s.lastViewWidth = 80
 	s.lastViewHeight = 24
 	// Open with a left-button press (same as user click).
-	press := tea.MouseMsg{X: 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	press := tea.MouseMsg{X: 10, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	next, _ := s.Update(press)
 	if !next.open {
 		t.Fatal("press did not open modal")
 	}
 	// Send the release of the same click (host would forward it after opening).
-	release := tea.MouseMsg{X: 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionRelease}
+	release := tea.MouseMsg{X: 10, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionRelease}
 	next, cmd := next.Update(release)
 	if !next.open {
 		t.Error("release after open closed the picker; same-click release should be ignored")
@@ -132,15 +151,15 @@ func TestSwatchIgnoreSameClickRelease(t *testing.T) {
 func TestSwatchHitTestBounds(t *testing.T) {
 	s := NewSwatchPicker("#7E00AF", "")
 	s.SetBounds(2, 10, 2, 1)
-	// X 0-based, Y 1-based: swatch at (row 2, col 10) size 2x1 -> X in [10,12), Y=3
-	inside := tea.MouseMsg{X: 10, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	// Swatch at row 2, col 10, size 2x1 (0-based half-open): X in [10,12), Y=2
+	inside := tea.MouseMsg{X: 10, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	next, _ := s.Update(inside)
 	if !next.open {
 		t.Error("click inside swatch bounds did not open modal")
 	}
 	// Close modal, then click outside swatch (left of swatch): should not open
 	next, _ = next.Update(ColorCanceledMsg{})
-	outside := tea.MouseMsg{X: 8, Y: 3, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	outside := tea.MouseMsg{X: 8, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	next, _ = next.Update(outside)
 	if next.open {
 		t.Error("click outside swatch opened modal")
@@ -149,7 +168,7 @@ func TestSwatchHitTestBounds(t *testing.T) {
 
 // TestSwatchClickOpensPickerAtPosition mimics the example's 2x2 layout: position the mouse
 // directly on the first swatch (using the same bounds as the example) and send a click;
-// verify the picker opens. Uses 1-based mouse coordinates (Bubble Tea convention).
+// verify the picker opens. Uses normalized 0-based Bubble Tea mouse coordinates.
 func TestSwatchClickOpensPickerAtPosition(t *testing.T) {
 	const labelLen = 10
 	const gap = 2
@@ -179,18 +198,16 @@ func TestSwatchClickOpensPickerAtPosition(t *testing.T) {
 		swatches[i].SetBounds(row, col, sw, sh)
 	}
 
-	// Click directly on first swatch: 0-based (row 2, col 10), X 0-based -> (X=10, Y=3 1-based)
-	click := tea.MouseMsg{X: col1, Y: 2 + 1, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	click := tea.MouseMsg{X: col1, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	swatches[0], _ = swatches[0].Update(click)
 	if !swatches[0].Open() {
-		t.Errorf("click at (X=%d 0-based, Y=%d 1-based) on first swatch did not open picker", col1, 3)
+		t.Errorf("click at (X=%d, Y=%d) on first swatch did not open picker", col1, 2)
 	}
 
-	// Click on second swatch: (row 2, col 24) -> X=24, Y=3
 	swatches[1], _ = swatches[1].Update(ColorCanceledMsg{}) // close if any
-	click2 := tea.MouseMsg{X: col2, Y: 2 + 1, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
+	click2 := tea.MouseMsg{X: col2, Y: 2, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress}
 	swatches[1], _ = swatches[1].Update(click2)
 	if !swatches[1].Open() {
-		t.Errorf("click at (X=%d, Y=%d) on second swatch did not open picker", col2, 3)
+		t.Errorf("click at (X=%d, Y=%d) on second swatch did not open picker", col2, 2)
 	}
 }

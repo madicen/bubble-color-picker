@@ -4,8 +4,6 @@
 package bubblepicker
 
 import (
-	"strings"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
@@ -144,26 +142,11 @@ func (s *SwatchPicker) ViewWithOverlay(mainView string, viewWidth, viewHeight in
 		return mainView
 	}
 	modalContent := s.picker.View()
-	modalLines := strings.Split(modalContent, "\n")
-	overlayHeight := len(modalLines)
-	modalW := 0
-	for _, l := range modalLines {
-		if w := lipgloss.Width(l); w > modalW {
-			modalW = w
-		}
-	}
+	modalW, overlayHeight := overlay.ModalCellSize(modalContent)
 	centerRow := s.row + s.h/2
 	centerCol := s.col + s.w/2
-	leftPad := centerCol - modalW/2
-	topPad := centerRow - overlayHeight/2
-	leftPad = max(leftPad, 0)
-	if leftPad+modalW > viewWidth {
-		leftPad = max(viewWidth-modalW, 0)
-	}
-	topPad = max(topPad, 0)
-	if topPad+overlayHeight > viewHeight {
-		topPad = max(viewHeight-overlayHeight, 0)
-	}
+	topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+		ClampedOrigin(modalW, overlayHeight, viewWidth, viewHeight)
 	s.lastOverlayLeft = leftPad
 	s.lastOverlayTop = topPad
 	s.lastModalW = modalW
@@ -189,16 +172,8 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 			if s.lastOverlayHeight > 0 && s.lastModalW > 0 {
 				centerRow := s.row + s.h/2
 				centerCol := s.col + s.w/2
-				leftPad := centerCol - s.lastModalW/2
-				topPad := centerRow - s.lastOverlayHeight/2
-				leftPad = max(leftPad, 0)
-				if s.lastViewWidth > 0 && leftPad+s.lastModalW > s.lastViewWidth {
-					leftPad = max(s.lastViewWidth-s.lastModalW, 0)
-				}
-				topPad = max(topPad, 0)
-				if s.lastViewHeight > 0 && topPad+s.lastOverlayHeight > s.lastViewHeight {
-					topPad = max(s.lastViewHeight-s.lastOverlayHeight, 0)
-				}
+				topPad, leftPad := overlay.Fixed(centerRow-s.lastOverlayHeight/2, centerCol-s.lastModalW/2).
+					ClampedOrigin(s.lastModalW, s.lastOverlayHeight, s.lastViewWidth, s.lastViewHeight)
 				s.lastOverlayLeft = leftPad
 				s.lastOverlayTop = topPad
 			}
@@ -231,9 +206,7 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 			if s.lastOverlayHeight <= 0 && s.lastViewHeight > 0 {
 				topPad = max((s.lastViewHeight-22)/2, 0)
 			}
-			// Only forward to picker when click is inside the modal rect (X 0-based, Y 1-based).
-			inModal := m.X >= leftPad && m.X < leftPad+s.lastModalW &&
-				m.Y >= topPad+1 && m.Y <= topPad+s.lastOverlayHeight
+			inModal := overlay.CellInModal(m.X, m.Y, topPad, leftPad, s.lastModalW, s.lastOverlayHeight)
 			if !inModal {
 				return s, nil
 			}
@@ -255,12 +228,12 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 		if m.Action == tea.MouseActionPress && m.Button == tea.MouseButtonLeft {
 			// When zoneManager is set, the app only forwards to us when the zone was in bounds,
 			// so we must not re-check bounds (zone covers e.g. "Color 1: ■▼", not just the 2-cell swatch).
-			// When zoneManager is nil, use 0-based X and 1-based Y bounds.
+			// When zoneManager is nil, use Bubble Tea 0-based cell coords (half-open ranges).
 			inBounds := s.zoneManager != nil ||
-				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row+1 && m.Y <= s.row+s.h)
+				(m.X >= s.col && m.X < s.col+s.w && m.Y >= s.row && m.Y < s.row+s.h)
 			if inBounds {
 				next := *s
-				next.picker = New(s.color)
+				next.picker = New(WithInitialColor(s.color))
 				if s.zoneManager != nil {
 					next.picker.SetZoneManager(s.zoneManager)
 				}
@@ -272,16 +245,8 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 				modalW, overlayHeight := next.picker.ViewSize()
 				centerRow := next.row + next.h/2
 				centerCol := next.col + next.w/2
-				leftPad := centerCol - modalW/2
-				topPad := centerRow - overlayHeight/2
-				leftPad = max(leftPad, 0)
-				if next.lastViewWidth > 0 && leftPad+modalW > next.lastViewWidth {
-					leftPad = max(next.lastViewWidth-modalW, 0)
-				}
-				topPad = max(topPad, 0)
-				if next.lastViewHeight > 0 && topPad+overlayHeight > next.lastViewHeight {
-					topPad = max(next.lastViewHeight-overlayHeight, 0)
-				}
+				topPad, leftPad := overlay.Fixed(centerRow-overlayHeight/2, centerCol-modalW/2).
+					ClampedOrigin(modalW, overlayHeight, next.lastViewWidth, next.lastViewHeight)
 				next.lastOverlayLeft = leftPad
 				next.lastOverlayTop = topPad
 				next.lastModalW = modalW
@@ -317,13 +282,11 @@ func (s *SwatchPicker) Update(msg tea.Msg) (*SwatchPicker, tea.Cmd) {
 	return s, nil
 }
 
-// MouseToModalCoords converts screen (x, y) from Bubble Tea to modal-relative (relX, relY)
-// for the picker. X is 0-based, Y is 1-based. The picker expects Y=1 for the first row and
-// X=2 for the first content column (col 0 = padding; it does col-- then contentCol = col-1).
+// MouseToModalCoords converts normalized Bubble Tea screen coords (0-based X and Y, same as
+// overlay.CellInModal) to coordinates relative to the modal’s top-left cell, in the form the
+// picker’s zone handlers expect (contentCol = relX-1, contentRow = relY-1 after Pos-style offsets).
 func MouseToModalCoords(screenX, screenY, overlayLeft, overlayTop int) (relX, relY int) {
-	// Y 1-based: first overlay line is at screen Y = overlayTop+1 -> pass relY=1
-	relY = screenY - overlayTop
-	// X 0-based: first overlay column is at screen X = overlayLeft -> picker expects relX=2 for first content column
+	relY = screenY - overlayTop + 1
 	relX = screenX - overlayLeft + 2
 	return relX, relY
 }
